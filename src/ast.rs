@@ -2,7 +2,12 @@ mod operators;
 mod tokenizer;
 
 pub use operators::Operator;
+use pest::iterators::Pairs;
 pub use tokenizer::{Token, Tokenizer};
+
+#[derive(pest_derive::Parser)]
+#[grammar = "grammar.pest"]
+pub struct BrainFuckParser;
 
 #[derive(Debug)]
 pub struct Ast(Vec<Operator>);
@@ -13,9 +18,32 @@ impl From<Tokenizer> for Ast {
     }
 }
 
+impl From<Pairs<'_, Rule>> for Ast {
+    fn from(mut pairs: Pairs<Rule>) -> Ast {
+        Ast::parse(pairs.next().unwrap().into_inner())
+    }
+}
+
 impl Ast {
     pub fn inner(&self) -> &[Operator] {
         &self.0
+    }
+
+    fn parse(pairs: Pairs<Rule>) -> Ast {
+        let mut ops = vec![];
+        for pair in pairs {
+            match pair.as_rule() {
+                Rule::Command => ops.push(Operator::from(
+                    pair.as_span().as_str().bytes().next().unwrap(),
+                )),
+                Rule::Loop => ops.push(Operator::Loop(Ast::parse(pair.into_inner()))),
+                Rule::Program => panic!("error we should never see a program rule"),
+                Rule::EOI => break,
+                _ => {}
+            }
+        }
+
+        Ast(ops)
     }
 
     fn load(tokens: &[Token]) -> Ast {

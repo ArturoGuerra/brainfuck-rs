@@ -1,0 +1,5 @@
+Program    = { SOI ~ (Command | Loop)* ~ EOI }
+Command    = { "+" | "-" | "<" | ">" | "." | "," }
+Loop       = { "[" ~ (Command | Loop)* ~ "]" }
+COMMENT    = { (!("+" | "-" | "<" | ">" | "." | " |" | "[" | "]") ~ ANY)+ }
+WHITESPACE = { " " | "\t" }
