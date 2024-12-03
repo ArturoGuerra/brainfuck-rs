@@ -14,13 +14,13 @@ pub struct Ast(Vec<Operator>);
 
 impl From<Tokenizer> for Ast {
     fn from(t: Tokenizer) -> Ast {
-        Ast::load(&t.inner())
+        Ast::parse_from_tokenizer(&t.inner())
     }
 }
 
 impl From<Pairs<'_, Rule>> for Ast {
     fn from(mut pairs: Pairs<Rule>) -> Ast {
-        Ast::parse(pairs.next().unwrap().into_inner())
+        Ast::parse_from_pest(pairs.next().unwrap().into_inner())
     }
 }
 
@@ -29,14 +29,14 @@ impl Ast {
         &self.0
     }
 
-    fn parse(pairs: Pairs<Rule>) -> Ast {
+    fn parse_from_pest(pairs: Pairs<Rule>) -> Ast {
         let mut ops = vec![];
         for pair in pairs {
             match pair.as_rule() {
                 Rule::Command => ops.push(Operator::from(
                     pair.as_span().as_str().bytes().next().unwrap(),
                 )),
-                Rule::Loop => ops.push(Operator::Loop(Ast::parse(pair.into_inner()))),
+                Rule::Loop => ops.push(Operator::Loop(Ast::parse_from_pest(pair.into_inner()))),
                 Rule::Program => panic!("error we should never see a program rule"),
                 Rule::EOI => break,
                 _ => {}
@@ -46,7 +46,7 @@ impl Ast {
         Ast(ops)
     }
 
-    fn load(tokens: &[Token]) -> Ast {
+    fn parse_from_tokenizer(tokens: &[Token]) -> Ast {
         let mut sp = 0;
         let mut stack = 0;
         let mut ops = Vec::new();
@@ -80,7 +80,9 @@ impl Ast {
                     Token::JmpBck => {
                         stack -= 1;
                         if stack == 0 {
-                            ops.push(Operator::Loop(Self::load(&tokens[sp + 1..pc])))
+                            ops.push(Operator::Loop(Self::parse_from_tokenizer(
+                                &tokens[sp + 1..pc],
+                            )))
                         }
                     }
                     _ => {}
