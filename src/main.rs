@@ -6,9 +6,12 @@ use std::path::Path;
 
 #[allow(unused_imports)]
 use ast::{Ast, Tokenizer};
+use codegen::IRCodegen;
+#[allow(unused_imports)]
 use machine::Machine;
 
 mod ast;
+mod codegen;
 mod machine;
 mod tape;
 
@@ -16,6 +19,13 @@ mod tape;
 enum ParserMode {
     Pest,
     Internal,
+}
+
+#[derive(clap::ValueEnum, Clone)]
+enum Mode {
+    Jit,     // Just in time Compilation using LLVM
+    Compile, // Complies using llvm and clang
+    Machine, // Custom interpreter much slower
 }
 
 #[derive(Parser)]
@@ -28,6 +38,9 @@ struct Cli {
     // Switches between pest and internal parser
     #[arg(short, long, value_enum, default_value_t = ParserMode::Pest)]
     parsemode: ParserMode,
+
+    #[arg(short, long, value_enum, default_value_t = Mode::Jit)]
+    mode: Mode,
 }
 
 #[allow(dead_code)]
@@ -58,5 +71,9 @@ fn main() {
         }
     };
 
-    Machine::default().run(&ast);
+    match cli.mode {
+        Mode::Jit => IRCodegen::from(&ast).jit(),
+        Mode::Compile => {}
+        Mode::Machine => Machine::default().run(&ast),
+    }
 }
