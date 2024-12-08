@@ -73,7 +73,7 @@ fn main() {
 
     match cli.mode {
         Mode::Jit => IRCodegen::from(&ast).jit(),
-        Mode::Compile => {}
+        Mode::Compile => IRCodegen::from(&ast).compile("brainfuck"),
         Mode::Machine => Machine::default().run(&ast),
     }
 }

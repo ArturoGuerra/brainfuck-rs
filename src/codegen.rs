@@ -6,6 +6,10 @@ use inkwell::OptimizationLevel;
 use inkwell::{builder::Builder, context::Context, module::Linkage};
 use inkwell::{AddressSpace, IntPredicate};
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::Write;
+use std::path::Path;
+use std::process::Command;
 
 pub struct IRCodegen<'a, 'ctx> {
     ast: &'a Ast,
@@ -35,6 +39,27 @@ impl<'a, 'ctx> IRCodegen<'a, 'ctx> {
             let f: JitFunction<Func> = exec_engine.get_function("main").unwrap();
             f.call();
         }
+    }
+
+    pub fn compile(&self, name: &str) {
+        std::fs::create_dir_all("./out").expect("unable to create output dir");
+        let path = Path::new("./out");
+        let ir = self.build_module().to_string();
+        let ir_filepath = path.join("output.ll");
+
+        let mut file = File::create(&ir_filepath).expect("unable to create IR file");
+        file.write_all(ir.as_bytes())
+            .expect("unable to write IR to file");
+
+        let output = path.join(name);
+        let status = Command::new("clang")
+            .arg("-o")
+            .arg(output)
+            .arg(ir_filepath)
+            .status()
+            .expect("failed to execute clang");
+
+        println!("{:?}", status);
     }
 
     pub fn build_module(&self) -> Module {
@@ -86,7 +111,9 @@ impl<'a, 'ctx> IRCodegen<'a, 'ctx> {
 
         ircode.build(&self.context, &builder, &ptr, ircode.ast);
 
-        builder.build_return(None).unwrap();
+        let ret = self.context.i8_type().const_zero();
+
+        builder.build_return(Some(&ret)).unwrap();
 
         module
     }
